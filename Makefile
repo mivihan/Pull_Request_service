@@ -77,3 +77,8 @@ mocks:
 	else \
 		echo "mockery not installed"; \
 	fi
+
+test-integration:
+	@echo "Running integration tests..."
+	@echo "Ensure docker-compose is running: docker-compose up -d"
+	@go test -v -count=1 ./test/integration/...

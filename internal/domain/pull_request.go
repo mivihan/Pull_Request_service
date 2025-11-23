@@ -61,7 +61,7 @@ func (pr *PullRequest) Merge() error {
 	}
 
 	pr.Status = PRStatusMerged
-	now := time.Now()
+	now := time.Now().UTC().Truncate(time.Microsecond)
 	pr.MergedAt = &now
 
 	return nil
