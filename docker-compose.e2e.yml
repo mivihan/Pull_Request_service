@@ -1,0 +1,63 @@
+version: '3.9'
+
+services:
+  db_e2e:
+    image: postgres:15-alpine
+    container_name: pr-reviewer-db-e2e
+    environment:
+      POSTGRES_DB: pr_reviewer_e2e
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_e2e_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    networks:
+      - e2e-network
+
+  migrate_e2e:
+    image: migrate/migrate:v4.17.0
+    container_name: pr-reviewer-migrate-e2e
+    depends_on:
+      db_e2e:
+        condition: service_healthy
+    volumes:
+      - ./migrations:/migrations
+    command:
+      [
+        "-path", "/migrations",
+        "-database", "postgres://postgres:postgres@db_e2e:5432/pr_reviewer_e2e?sslmode=disable",
+        "up"
+      ]
+    networks:
+      - e2e-network
+
+  api_e2e:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pr-reviewer-api-e2e
+    depends_on:
+      migrate_e2e:
+        condition: service_completed_successfully
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://postgres:postgres@db_e2e:5432/pr_reviewer_e2e?sslmode=disable"
+      LOG_LEVEL: "info"
+    ports:
+      - "8081:8080"
+    networks:
+      - e2e-network
+    restart: unless-stopped
+
+volumes:
+  postgres_e2e_data:
+
+networks:
+  e2e-network:
+    driver: bridge

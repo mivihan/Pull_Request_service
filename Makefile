@@ -82,3 +82,51 @@ test-integration:
 	@echo "Running integration tests..."
 	@echo "Ensure docker-compose is running: docker-compose up -d"
 	@go test -v -count=1 ./test/integration/...
+
+
+test:
+	@echo "Running unit tests..."
+	go test -v -race -cover ./...
+
+test-integration-local:
+	@echo "Running integration tests against localhost:8080..."
+	@echo "Ensure docker-compose is running: docker-compose up -d"
+	@go test -v -count=1 ./test/integration/...
+
+test-e2e:
+	@echo "Starting e2e environment..."
+	@docker-compose -f docker-compose.e2e.yml up -d --build
+	@echo "Waiting for services to be ready..."
+	@sleep 8
+	@echo "Running tests against http://localhost:8081..."
+	@E2E_BASE_URL=http://localhost:8081 go test -v -count=1 ./test/integration/... || \
+		(echo "\nTests failed. Showing logs:" && docker-compose -f docker-compose.e2e.yml logs api_e2e && \
+		docker-compose -f docker-compose.e2e.yml down -v && exit 1)
+	@echo "Tests passed. Cleaning up..."
+	@docker-compose -f docker-compose.e2e.yml down -v
+	@echo "E2E tests completed successfully!"
+
+test-e2e-up:
+	@echo "Starting e2e environment..."
+	@docker-compose -f docker-compose.e2e.yml up -d --build
+	@echo "Waiting for services..."
+	@sleep 5
+	@echo ""
+	@echo "E2E environment is ready!"
+	@echo "API available at: http://localhost:8081"
+	@echo "Database available at: localhost:5433"
+	@echo ""
+	@echo "Run tests with:"
+	@echo "  E2E_BASE_URL=http://localhost:8081 go test -v ./test/integration/..."
+	@echo ""
+	@echo "Stop with: make test-e2e-down"
+
+test-e2e-down:
+	@echo "Stopping e2e environment..."
+	@docker-compose -f docker-compose.e2e.yml down -v
+	@echo "E2E environment stopped and cleaned up."
+
+test-e2e-logs:
+	@docker-compose -f docker-compose.e2e.yml logs -f
+
+test-integration: test-integration-local

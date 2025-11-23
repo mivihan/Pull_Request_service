@@ -5,11 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 )
 
-const baseURL = "http://localhost:8080"
+var baseURL = getBaseURL()
+
+func getBaseURL() string {
+	if url := os.Getenv("E2E_BASE_URL"); url != "" {
+		return url
+	}
+	return "http://localhost:8080"
+}
 
 type TeamMember struct {
 	UserID   string `json:"user_id"`
@@ -99,8 +107,8 @@ type UserResponse struct {
 }
 
 type TeamGetResponse struct {
-    TeamName string       `json:"team_name"`
-    Members  []TeamMember `json:"members"`
+	TeamName string       `json:"team_name"`
+	Members  []TeamMember `json:"members"`
 }
 
 func makeRequest(t *testing.T, method, path string, body interface{}) (*http.Response, []byte) {
@@ -305,7 +313,7 @@ func TestMergePRIdempotency(t *testing.T) {
 
 	first := firstMergedAt.Truncate(time.Microsecond)
 	second := prResp2.PR.MergedAt.Truncate(time.Microsecond)
-	
+
 	if !second.Equal(first) {
 		t.Errorf("merged_at changed on second merge: %v -> %v", firstMergedAt, *prResp2.PR.MergedAt)
 	}
@@ -407,71 +415,71 @@ func TestUserReviewsAndStats(t *testing.T) {
 }
 
 func TestBulkDeactivateUsers(t *testing.T) {
-    teamName := generateID("team")
+	teamName := generateID("team")
 
-    user1ID := generateID("user")
-    user2ID := generateID("user")
-    user3ID := generateID("user")
-    user4ID := generateID("user")
+	user1ID := generateID("user")
+	user2ID := generateID("user")
+	user3ID := generateID("user")
+	user4ID := generateID("user")
 
-    createTeamReq := CreateTeamRequest{
-        TeamName: teamName,
-        Members: []TeamMember{
-            {UserID: user1ID, Username: "Alice", IsActive: true},
-            {UserID: user2ID, Username: "Bob", IsActive: true},
-            {UserID: user3ID, Username: "Charlie", IsActive: true},
-            {UserID: user4ID, Username: "Dave", IsActive: true},
-        },
-    }
+	createTeamReq := CreateTeamRequest{
+		TeamName: teamName,
+		Members: []TeamMember{
+			{UserID: user1ID, Username: "Alice", IsActive: true},
+			{UserID: user2ID, Username: "Bob", IsActive: true},
+			{UserID: user3ID, Username: "Charlie", IsActive: true},
+			{UserID: user4ID, Username: "Dave", IsActive: true},
+		},
+	}
 
-    resp, body := makeRequest(t, "POST", "/team/add", createTeamReq)
-    if resp.StatusCode != http.StatusCreated {
-        t.Fatalf("setup failed (team): %s", string(body))
-    }
+	resp, body := makeRequest(t, "POST", "/team/add", createTeamReq)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("setup failed (team): %s", string(body))
+	}
 
-    prID := generateID("pr")
-    createPRReq := CreatePRRequest{
-        PullRequestID:   prID,
-        PullRequestName: "Feature",
-        AuthorID:        user1ID,
-    }
+	prID := generateID("pr")
+	createPRReq := CreatePRRequest{
+		PullRequestID:   prID,
+		PullRequestName: "Feature",
+		AuthorID:        user1ID,
+	}
 
-    resp, body = makeRequest(t, "POST", "/pullRequest/create", createPRReq)
-    if resp.StatusCode != http.StatusCreated {
-        t.Fatalf("setup failed (PR): %s", string(body))
-    }
+	resp, body = makeRequest(t, "POST", "/pullRequest/create", createPRReq)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("setup failed (PR): %s", string(body))
+	}
 
-    var prResp PRResponse
-    if err := json.Unmarshal(body, &prResp); err != nil {
-        t.Fatalf("failed to unmarshal PR response: %v", err)
-    }
-    initialReviewers := append([]string(nil), prResp.PR.AssignedReviewers...)
+	var prResp PRResponse
+	if err := json.Unmarshal(body, &prResp); err != nil {
+		t.Fatalf("failed to unmarshal PR response: %v", err)
+	}
+	initialReviewers := append([]string(nil), prResp.PR.AssignedReviewers...)
 
-    deactivateReq := DeactivateUsersRequest{
-        TeamName: teamName,
-        UserIDs:  []string{user2ID, user3ID},
-    }
+	deactivateReq := DeactivateUsersRequest{
+		TeamName: teamName,
+		UserIDs:  []string{user2ID, user3ID},
+	}
 
-    resp, body = makeRequest(t, "POST", "/team/deactivateUsers", deactivateReq)
-    if resp.StatusCode != http.StatusOK {
-        t.Fatalf("deactivation failed with status %d: %s", resp.StatusCode, string(body))
-    }
+	resp, body = makeRequest(t, "POST", "/team/deactivateUsers", deactivateReq)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("deactivation failed with status %d: %s", resp.StatusCode, string(body))
+	}
 
-    var deactivateResp DeactivateUsersResponse
-    if err := json.Unmarshal(body, &deactivateResp); err != nil {
-        t.Fatalf("failed to parse deactivation response: %v", err)
-    }
+	var deactivateResp DeactivateUsersResponse
+	if err := json.Unmarshal(body, &deactivateResp); err != nil {
+		t.Fatalf("failed to parse deactivation response: %v", err)
+	}
 
-    if deactivateResp.DeactivatedCount != 2 {
-        t.Errorf("expected 2 users deactivated, got %d", deactivateResp.DeactivatedCount)
-    }
+	if deactivateResp.DeactivatedCount != 2 {
+		t.Errorf("expected 2 users deactivated, got %d", deactivateResp.DeactivatedCount)
+	}
 
-    resp, body = makeRequest(t, "GET", "/team/get?team_name="+teamName, nil)
-    if resp.StatusCode != http.StatusOK {
-        t.Fatalf("failed to get team after deactivation: %s", string(body))
-    }
+	resp, body = makeRequest(t, "GET", "/team/get?team_name="+teamName, nil)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("failed to get team after deactivation: %s", string(body))
+	}
 
-    var teamGetResp TeamGetResponse
+	var teamGetResp TeamGetResponse
 	if err := json.Unmarshal(body, &teamGetResp); err != nil {
 		t.Fatalf("failed to unmarshal team response: %v", err)
 	}
@@ -483,33 +491,33 @@ func TestBulkDeactivateUsers(t *testing.T) {
 		}
 	}
 
-    for id, ok := range inactive {
-        if !ok {
-            t.Errorf("expected user %s to be inactive after deactivation", id)
-        }
-    }
+	for id, ok := range inactive {
+		if !ok {
+			t.Errorf("expected user %s to be inactive after deactivation", id)
+		}
+	}
 
-    resp, body = makeRequest(t, "POST", "/pullRequest/create", CreatePRRequest{
-        PullRequestID:   generateID("pr"),
-        PullRequestName: "Another feature",
-        AuthorID:        user1ID,
-    })
-    if resp.StatusCode != http.StatusCreated {
-        t.Fatalf("failed to create PR after deactivation: %s", string(body))
-    }
+	resp, body = makeRequest(t, "POST", "/pullRequest/create", CreatePRRequest{
+		PullRequestID:   generateID("pr"),
+		PullRequestName: "Another feature",
+		AuthorID:        user1ID,
+	})
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("failed to create PR after deactivation: %s", string(body))
+	}
 
-    var newPRResp PRResponse
-    if err := json.Unmarshal(body, &newPRResp); err != nil {
-        t.Fatalf("failed to unmarshal new PR response: %v", err)
-    }
+	var newPRResp PRResponse
+	if err := json.Unmarshal(body, &newPRResp); err != nil {
+		t.Fatalf("failed to unmarshal new PR response: %v", err)
+	}
 
-    for _, reviewerID := range newPRResp.PR.AssignedReviewers {
-        if reviewerID == user2ID || reviewerID == user3ID {
-            t.Errorf("deactivated user %s should not be assigned as reviewer", reviewerID)
-        }
-    }
+	for _, reviewerID := range newPRResp.PR.AssignedReviewers {
+		if reviewerID == user2ID || reviewerID == user3ID {
+			t.Errorf("deactivated user %s should not be assigned as reviewer", reviewerID)
+		}
+	}
 
-    t.Logf("Deactivation successful: %d users deactivated, %d PRs affected",
-        deactivateResp.DeactivatedCount, deactivateResp.AffectedPRCount)
-    t.Logf("Initial reviewers: %v", initialReviewers)
+	t.Logf("Deactivation successful: %d users deactivated, %d PRs affected",
+		deactivateResp.DeactivatedCount, deactivateResp.AffectedPRCount)
+	t.Logf("Initial reviewers: %v", initialReviewers)
 }

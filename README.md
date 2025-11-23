@@ -492,35 +492,33 @@ LOG_LEVEL=info
 
 ## Тестирование
 
-Запуск тестов:
-
-```bash
-go test -v -race -cover ./...
+**Юнит-тесты**
+Запуск всех юнит-тестов:
 ```
-
-Или через Makefile:
-
-```bash
+go test -v -race -cover ./...
+# или
 make test
 ```
-
-Тесты включают:
-
-- Юнит-тесты доменной логики (internal/domain/pull_request_test.go)
-- Тесты бизнес-логики сервисного слоя (internal/service/pr_service_test.go)
-- Интеграционные тесты(E2E)
-
-Интеграционные (E2E) тесты находятся в `test/integration/api_test.go` и выполняются поверх запущенного через docker-compose сервиса
-
-Запуск:
-
-```bash
-make test-integration
-
-# или вручную:
+**Интеграционные тесты (dev-окружение)**
+Интеграционные тесты находятся в test/integration/api_test.go и работают против dev-окружения (docker-compose.yml, http://localhost:8080)
+```
 docker-compose up -d
-go test -v ./test/integration/...
-docker-compose down
+go test -v -count=1 ./test/integration/...
+# или
+make test-integration-local
+```
+
+**E2E тесты (изолированное окружение)**
+Для e2e используется отдельное окружение из docker-compose.e2e.yml с собственной БД (pr_reviewer_e2e) и API на http://localhost:8081
+Полный цикл:
+```
+make test-e2e
+```
+Ручной запуск:
+```
+docker-compose -f docker-compose.e2e.yml up -d --build
+E2E_BASE_URL=http://localhost:8081 go test -v -count=1 ./test/integration/...
+docker-compose -f docker-compose.e2e.yml down -v
 ```
 
 Тесты проверяют:
