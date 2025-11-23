@@ -19,9 +19,16 @@ type TeamWithMembers struct {
 	Members  []*domain.User
 }
 
+type DeactivationResult struct {
+	TeamName         string
+	DeactivatedCount int
+	AffectedPRCount  int
+}
+
 type TeamService interface {
 	CreateTeam(ctx context.Context, teamName string, members []TeamMemberInput) (*TeamWithMembers, error)
 	GetTeam(ctx context.Context, teamName string) (*TeamWithMembers, error)
+	DeactivateTeamUsers(ctx context.Context, teamName string, userIDs []string) (*DeactivationResult, error)
 }
 
 type teamService struct {
@@ -91,5 +98,82 @@ func (s *teamService) GetTeam(ctx context.Context, teamName string) (*TeamWithMe
 	return &TeamWithMembers{
 		TeamName: team.TeamName,
 		Members:  members,
+	}, nil
+}
+
+func (s *teamService) DeactivateTeamUsers(ctx context.Context, teamName string, userIDs []string) (*DeactivationResult, error) {
+	if len(userIDs) == 0 {
+		return &DeactivationResult{
+			TeamName:         teamName,
+			DeactivatedCount: 0,
+			AffectedPRCount:  0,
+		}, nil
+	}
+	_, err := s.repos.Team.GetByName(ctx, teamName)
+	if err != nil {
+		return nil, err
+	}
+
+	var deactivatedCount int
+	var affectedPRCount int
+	err = s.repos.WithTx(ctx, func(txCtx context.Context) error {
+		count, err := s.repos.User.DeactivateUsers(txCtx, teamName, userIDs)
+		if err != nil {
+			return err
+		}
+		deactivatedCount = count
+
+		if deactivatedCount == 0 {
+			return nil
+		}
+		affectedPRs, err := s.repos.PR.GetOpenPRsByReviewers(txCtx, userIDs)
+		if err != nil {
+			return err
+		}
+
+		affectedPRCount = len(affectedPRs)
+		deactivatedSet := make(map[string]bool)
+		for _, uid := range userIDs {
+			deactivatedSet[uid] = true
+		}
+
+		for _, pr := range affectedPRs {
+			newReviewers := make([]string, 0, len(pr.AssignedReviewers))
+
+			for _, reviewerID := range pr.AssignedReviewers {
+				if deactivatedSet[reviewerID] {
+					excludeIDs := append([]string{pr.AuthorID}, pr.AssignedReviewers...)
+					
+					candidates, err := s.repos.User.ListActiveByTeamExcluding(txCtx, teamName, excludeIDs)
+					if err != nil {
+						return err
+					}
+
+					if len(candidates) > 0 {
+						replacement := candidates[0].UserID
+						newReviewers = append(newReviewers, replacement)
+						pr.AssignedReviewers = append(pr.AssignedReviewers, replacement)
+					}
+				} else {
+					newReviewers = append(newReviewers, reviewerID)
+				}
+			}
+
+			if err := s.repos.PR.AssignReviewers(txCtx, pr.PullRequestID, newReviewers); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &DeactivationResult{
+		TeamName:         teamName,
+		DeactivatedCount: deactivatedCount,
+		AffectedPRCount:  affectedPRCount,
 	}, nil
 }

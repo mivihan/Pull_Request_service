@@ -296,3 +296,78 @@ func (r *PostgresPRRepository) GetPRStats(ctx context.Context) (map[string]int, 
 
 	return stats, nil
 }
+
+func (r *PostgresPRRepository) GetOpenPRsByReviewers(ctx context.Context, userIDs []string) ([]*domain.PullRequest, error) {
+	if len(userIDs) == 0 {
+		return []*domain.PullRequest{}, nil
+	}
+
+	q := getQuerier(ctx, r.pool)
+
+	query := `
+		SELECT DISTINCT pr.pull_request_id, pr.pull_request_name, pr.author_id, pr.status, pr.created_at, pr.merged_at
+		FROM pull_requests pr
+		INNER JOIN pr_reviewers rev ON pr.pull_request_id = rev.pr_id
+		WHERE pr.status = 'OPEN' AND rev.user_id = ANY($1)
+		ORDER BY pr.created_at DESC
+	`
+
+	rows, err := q.Query(ctx, query, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("query open PRs by reviewers: %w", err)
+	}
+	defer rows.Close()
+
+	var prs []*domain.PullRequest
+	for rows.Next() {
+		var pr domain.PullRequest
+		if err := rows.Scan(
+			&pr.PullRequestID,
+			&pr.PullRequestName,
+			&pr.AuthorID,
+			&pr.Status,
+			&pr.CreatedAt,
+			&pr.MergedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan pull request: %w", err)
+		}
+		prs = append(prs, &pr)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate PRs: %w", err)
+	}
+
+	for _, pr := range prs {
+		reviewersQuery := `
+			SELECT user_id
+			FROM pr_reviewers
+			WHERE pr_id = $1
+			ORDER BY assigned_at
+		`
+
+		reviewerRows, err := q.Query(ctx, reviewersQuery, pr.PullRequestID)
+		if err != nil {
+			return nil, fmt.Errorf("query reviewers for PR %s: %w", pr.PullRequestID, err)
+		}
+
+		var reviewers []string
+		for reviewerRows.Next() {
+			var userID string
+			if err := reviewerRows.Scan(&userID); err != nil {
+				reviewerRows.Close()
+				return nil, fmt.Errorf("scan reviewer: %w", err)
+			}
+			reviewers = append(reviewers, userID)
+		}
+		reviewerRows.Close()
+
+		if err := reviewerRows.Err(); err != nil {
+			return nil, fmt.Errorf("iterate reviewers: %w", err)
+		}
+
+		pr.AssignedReviewers = reviewers
+	}
+
+	return prs, nil
+}

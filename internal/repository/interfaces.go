@@ -19,6 +19,7 @@ type UserRepository interface {
 	SetIsActive(ctx context.Context, userID string, isActive bool) (*domain.User, error)
 	ListByTeam(ctx context.Context, teamName string) ([]*domain.User, error)
 	ListActiveByTeamExcluding(ctx context.Context, teamName string, excludeUserIDs []string) ([]*domain.User, error)
+	DeactivateUsers(ctx context.Context, teamName string, userIDs []string) (int, error)
 }
 
 type PRRepository interface {
@@ -31,6 +32,7 @@ type PRRepository interface {
 	ListByReviewer(ctx context.Context, userID string) ([]*domain.PullRequest, error)
 	GetReviewerStats(ctx context.Context) (map[string]int, error)
 	GetPRStats(ctx context.Context) (map[string]int, error)
+	GetOpenPRsByReviewers(ctx context.Context, userIDs []string) ([]*domain.PullRequest, error)
 }
 
 type Txer interface {

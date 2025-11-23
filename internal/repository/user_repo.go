@@ -197,3 +197,24 @@ func (r *PostgresUserRepository) ListActiveByTeamExcluding(
 
 	return users, nil
 }
+
+func (r *PostgresUserRepository) DeactivateUsers(ctx context.Context, teamName string, userIDs []string) (int, error) {
+	if len(userIDs) == 0 {
+		return 0, nil
+	}
+
+	q := getQuerier(ctx, r.pool)
+
+	query := `
+		UPDATE users
+		SET is_active = false
+		WHERE team_name = $1 AND user_id = ANY($2)
+	`
+
+	result, err := q.Exec(ctx, query, teamName, userIDs)
+	if err != nil {
+		return 0, fmt.Errorf("deactivate users: %w", err)
+	}
+
+	return int(result.RowsAffected()), nil
+}

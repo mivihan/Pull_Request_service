@@ -151,3 +151,14 @@ type PRStatsResponse struct {
 	Open   int `json:"open"`
 	Merged int `json:"merged"`
 }
+
+type DeactivateUsersRequest struct {
+	TeamName string   `json:"team_name"`
+	UserIDs  []string `json:"user_ids"`
+}
+
+type DeactivateUsersResponse struct {
+	TeamName        string `json:"team_name"`
+	DeactivatedCount int    `json:"deactivated_count"`
+	AffectedPRCount  int    `json:"affected_pr_count"`
+}

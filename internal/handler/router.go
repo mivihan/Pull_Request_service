@@ -33,6 +33,7 @@ func NewRouter(
 
 	r.Post("/team/add", teamHandler.CreateTeam)
 	r.Get("/team/get", teamHandler.GetTeam)
+	r.Post("/team/deactivateUsers", teamHandler.DeactivateUsers)
 
 	r.Post("/users/setIsActive", userHandler.SetIsActive)
 	r.Get("/users/getReview", userHandler.GetReviews)

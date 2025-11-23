@@ -75,3 +75,36 @@ func (h *TeamHandler) GetTeam(w http.ResponseWriter, r *http.Request) {
 
 	respondJSON(w, http.StatusOK, mapTeamWithMembersToDTO(team))
 }
+
+func (h *TeamHandler) DeactivateUsers(w http.ResponseWriter, r *http.Request) {
+	var req DeactivateUsersRequest
+	if err := decodeJSON(w, r, &req); err != nil {
+		return
+	}
+
+	if req.TeamName == "" {
+		respondJSON(w, http.StatusBadRequest, ErrorResponse{
+			Error: ErrorDetail{
+				Code:    "INVALID_REQUEST",
+				Message: "team_name is required",
+			},
+		})
+		return
+	}
+
+	if req.UserIDs == nil {
+		req.UserIDs = []string{}
+	}
+
+	result, err := h.teamService.DeactivateTeamUsers(r.Context(), req.TeamName, req.UserIDs)
+	if err != nil {
+		respondError(w, err, h.logger)
+		return
+	}
+
+	respondJSON(w, http.StatusOK, DeactivateUsersResponse{
+		TeamName:        result.TeamName,
+		DeactivatedCount: result.DeactivatedCount,
+		AffectedPRCount:  result.AffectedPRCount,
+	})
+}
