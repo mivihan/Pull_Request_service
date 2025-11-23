@@ -13,6 +13,8 @@ type PRService interface {
 	CreatePR(ctx context.Context, prID, prName, authorID string) (*domain.PullRequest, error)
 	MergePR(ctx context.Context, prID string) (*domain.PullRequest, error)
 	ReassignReviewer(ctx context.Context, prID, oldUserID string) (*domain.PullRequest, string, error)
+	GetReviewerStats(ctx context.Context) (map[string]int, error)
+	GetPRStats(ctx context.Context) (map[string]int, error)
 }
 
 type prService struct {
@@ -174,4 +176,12 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func (s *prService) GetReviewerStats(ctx context.Context) (map[string]int, error) {
+	return s.repos.PR.GetReviewerStats(ctx)
+}
+
+func (s *prService) GetPRStats(ctx context.Context) (map[string]int, error) {
+	return s.repos.PR.GetPRStats(ctx)
 }

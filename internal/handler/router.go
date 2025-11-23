@@ -29,6 +29,7 @@ func NewRouter(
 	teamHandler := NewTeamHandler(teamService, logger)
 	userHandler := NewUserHandler(userService, logger)
 	prHandler := NewPRHandler(prService, logger)
+	statsHandler := NewStatsHandler(prService, logger)
 
 	r.Post("/team/add", teamHandler.CreateTeam)
 	r.Get("/team/get", teamHandler.GetTeam)
@@ -39,6 +40,9 @@ func NewRouter(
 	r.Post("/pullRequest/create", prHandler.CreatePR)
 	r.Post("/pullRequest/merge", prHandler.MergePR)
 	r.Post("/pullRequest/reassign", prHandler.ReassignReviewer)
+
+	r.Get("/stats/reviewers", statsHandler.GetReviewerStats)
+	r.Get("/stats/pullRequests", statsHandler.GetPRStats)
 
 	return r
 }

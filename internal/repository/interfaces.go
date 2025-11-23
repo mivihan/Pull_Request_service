@@ -29,6 +29,8 @@ type PRRepository interface {
 	AssignReviewers(ctx context.Context, prID string, userIDs []string) error
 	ReplaceReviewer(ctx context.Context, prID string, oldUserID, newUserID string) error
 	ListByReviewer(ctx context.Context, userID string) ([]*domain.PullRequest, error)
+	GetReviewerStats(ctx context.Context) (map[string]int, error)
+	GetPRStats(ctx context.Context) (map[string]int, error)
 }
 
 type Txer interface {

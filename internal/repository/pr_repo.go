@@ -230,3 +230,69 @@ func (r *PostgresPRRepository) ListByReviewer(ctx context.Context, userID string
 
 	return prs, nil
 }
+
+// GetReviewerStats returns how many times each user was assigned as reviewer
+func (r *PostgresPRRepository) GetReviewerStats(ctx context.Context) (map[string]int, error) {
+	q := getQuerier(ctx, r.pool)
+
+	query := `
+		SELECT user_id, COUNT(*) as assignments_count
+		FROM pr_reviewers
+		GROUP BY user_id
+		ORDER BY assignments_count DESC
+	`
+
+	rows, err := q.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query reviewer stats: %w", err)
+	}
+	defer rows.Close()
+
+	stats := make(map[string]int)
+	for rows.Next() {
+		var userID string
+		var count int
+		if err := rows.Scan(&userID, &count); err != nil {
+			return nil, fmt.Errorf("scan reviewer stat: %w", err)
+		}
+		stats[userID] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate reviewer stats: %w", err)
+	}
+
+	return stats, nil
+}
+
+func (r *PostgresPRRepository) GetPRStats(ctx context.Context) (map[string]int, error) {
+	q := getQuerier(ctx, r.pool)
+
+	query := `
+		SELECT status, COUNT(*) as count
+		FROM pull_requests
+		GROUP BY status
+	`
+
+	rows, err := q.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query PR stats: %w", err)
+	}
+	defer rows.Close()
+
+	stats := make(map[string]int)
+	for rows.Next() {
+		var status string
+		var count int
+		if err := rows.Scan(&status, &count); err != nil {
+			return nil, fmt.Errorf("scan PR stat: %w", err)
+		}
+		stats[status] = count
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate PR stats: %w", err)
+	}
+
+	return stats, nil
+}

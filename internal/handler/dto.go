@@ -137,3 +137,17 @@ func mapPRToShortDTO(pr *domain.PullRequest) PullRequestShortDTO {
 		Status:          pr.Status.String(),
 	}
 }
+
+type ReviewerStatDTO struct {
+	UserID           string `json:"user_id"`
+	AssignmentsCount int    `json:"assignments_count"`
+}
+
+type ReviewerStatsResponse struct {
+	Reviewers []ReviewerStatDTO `json:"reviewers"`
+}
+
+type PRStatsResponse struct {
+	Open   int `json:"open"`
+	Merged int `json:"merged"`
+}
