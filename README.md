@@ -56,23 +56,27 @@ Pull_Request_service/
 │   └── api/
 │       └── main.go                  # Точка входа приложения
 ├── internal/
+│   ├── config/                      # Конфигурация из переменных окружения
+│   │   └── config.go
 │   ├── domain/                      # Доменные модели и бизнес-логика
-│   │   ├── user.go
-│   │   ├── team.go
+│   │   ├── errors.go
 │   │   ├── pull_request.go
+│   │   ├── pull_request_test.go
 │   │   ├── status.go
-│   │   └── errors.go
+│   │   ├── team.go
+│   │   └── user.go
 │   ├── repository/                  # Работа с базой данных
 │   │   ├── interfaces.go
 │   │   ├── postgres.go
 │   │   ├── team_repo.go
 │   │   ├── user_repo.go
 │   │   └── pr_repo.go
-│   ├── service/                     # Бизнес логика и оркестрация
+│   ├── service/                     # Бизнес-логика и оркестрация
 │   │   ├── team_service.go
 │   │   ├── user_service.go
-│   │   └── pr_service.go
-│   ├── handler/                     # HTTP обработчики
+│   │   ├── pr_service.go
+│   │   └── pr_service_test.go
+│   ├── handler/                     # HTTP-обработчики
 │   │   ├── router.go
 │   │   ├── dto.go
 │   │   ├── error.go
@@ -82,18 +86,23 @@ Pull_Request_service/
 │   ├── middleware/                  # HTTP middleware
 │   │   ├── logging.go
 │   │   └── recovery.go
-│   └── config/
-│       └── config.go                # Конфигурация из переменных окружения
 ├── pkg/
 │   └── database/
-│       └── postgres.go              # Инициализация пула соединений
-├── migrations/                      # SQL миграции
+│       └── postgres.go              # Инициализация пула соединений (pgxpool)
+├── migrations/                      # SQL-миграции
 │   ├── 000001_init_schema.up.sql
 │   └── 000001_init_schema.down.sql
-├── docker-compose.yml
-├── Dockerfile
-├── Makefile
-├── .env.example
+├── test/                            # Тесты поверх HTTP API и нагрузочные
+│   ├── integration/
+│   │   └── api_test.go              # Интеграционные/E2E-тесты HTTP API
+│   └── loadtest.js                  # k6-скрипт для нагрузочного тестирования
+├── docker-compose.yml               # Основное dev-окружение (DB + миграции + API)
+├── docker-compose.e2e.yml           # Изолированное e2e-окружение (DB_e2e + API_e2e)
+├── Dockerfile                       # Multi-stage билд Go-сервиса
+├── Makefile                         # Сборка, тесты, e2e, линтер и др
+├── .env.example                     # Пример конфигурации окружения
+├── .golangci.yml                    # Конфигурация golangci-lint
+├── openapi.yml                      # OpenAPI-спецификация API
 └── README.md
 ```
 
